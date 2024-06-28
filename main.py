@@ -71,25 +71,22 @@ class Tetris:
         self.board: list[list[bool]] = [
             [0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)
         ]
-        self.current_piece: list[list[bool]] = self.get_new_piece()
+
         self.i: int = 0
         self.j: int = BOARD_WIDTH // 2
+        self.rotation: int = 0
 
-    def get_new_piece(self) -> list[list[bool]]:
-        return random.choice(list(PIECES.values()))
+        self.piece_id: str = self.get_new_piece_id()
+        self.current_piece: list[list[bool]] = PIECES[self.piece_id]
+
+        self.score: int = 0
+
+    def get_new_piece_id(self) -> str:
+        return random.choice(list(PIECES.keys()))
 
     def move(self, dir: str) -> None:
-        new_i: int = self.i
-        new_j: int = self.j
-
-        if dir == "LEFT":
-            new_j -= 1
-        elif dir == "RIGHT":
-            new_j += 1
-        elif dir == "DOWN":
-            new_i += 1
-        elif dir == "UP":
-            new_i -= 1
+        new_i: int = self.i + [0, 1, -1][(dir == "DOWN") - (dir == "UP")]
+        new_j: int = self.j + [0, 1, -1][(dir == "RIGHT") - (dir == "LEFT")]
 
         if not self.valid(self.current_piece, new_i, new_j):
             if dir == "DOWN":
@@ -99,24 +96,31 @@ class Tetris:
         self.i = new_i
         self.j = new_j
 
-    def rotate(self, dir: str) -> None:
-        if dir == "CLOCKWISE":
+    def rotate(self, dir: int) -> None:
+        if dir == 1:  # clockwise
             new_piece: list[list[bool]] = [
                 list(row) for row in zip(*self.current_piece[::-1])
             ]
-        elif dir == "COUNTERCLOCKWISE":
-            new_piece: list[list[bool]] = [
-                list(row) for row in zip(*self.current_piece)
-            ][::-1]
-        elif dir == "180":
+        elif dir == 2:  # 180 degrees
             new_piece: list[list[bool]] = [
                 row[::-1] for row in self.current_piece[::-1]
             ]
+        elif dir == 3:  # counter clockwise
+            new_piece: list[list[bool]] = [
+                list(row) for row in zip(*self.current_piece)
+            ][::-1]
 
-        if not self.valid(new_piece, self.i, self.j):
+        if self.valid(new_piece, self.i, self.j):
+            self.current_piece = new_piece
             return
-
-        self.current_piece = new_piece
+        # new_rotation: int = (self.rotation + dir) % 4
+        # for inc_i, inc_j in TESTS[self.rotation][new_rotation]:
+        # if self.valid(new_piece, self.i + inc_i, self.j + inc_j):
+        # self.current_piece = new_piece
+        # self.i += inc_i
+        # self.j += inc_j
+        # self.rotation = new_rotation
+        # return
 
     def soft_drop(self) -> None:
         if self.valid(self.current_piece, self.i + 1, self.j):
@@ -134,6 +138,7 @@ class Tetris:
             if all(row):
                 self.board.pop(i)
                 self.board.insert(0, [False for _ in range(BOARD_WIDTH)])
+                self.score += 1  # TODO - Improve scoring algorithm
 
     def valid(self, piece: list[list[bool]], offset_i: int, offset_j: int) -> bool:
         for i, row in enumerate(piece):
@@ -158,7 +163,8 @@ class Tetris:
                 if cell:
                     self.board[self.i + i][self.j + j] = True
 
-        self.current_piece = self.get_new_piece()
+        self.current_piece_id = self.get_new_piece_id()
+        self.current_piece = PIECES[self.current_piece_id]
         self.i = 0
         self.j = BOARD_WIDTH // 2
 
@@ -187,11 +193,11 @@ class Tetris:
             elif key_pressed == MOVE_LEFT:
                 self.move("LEFT")
             elif key_pressed == ROTATE_CLOCKWISE:
-                self.rotate("CLOCKWISE")
+                self.rotate(1)
             elif key_pressed == ROTATE_COUNTERCLOCKWISE:
-                self.rotate("COUNTERCLOCKWISE")
+                self.rotate(3)
             elif key_pressed == ROTATE_180:
-                self.rotate("180")
+                self.rotate(2)
             elif key_pressed == HARD_DROP:
                 self.hard_drop()
             elif key_pressed == SOFT_DROP:
