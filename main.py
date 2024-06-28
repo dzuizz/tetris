@@ -59,10 +59,15 @@ ROTATE_CLOCKWISE = "f"
 ROTATE_COUNTERCLOCKWISE = "s"
 ROTATE_180 = "d"
 HARD_DROP = " "
+SOFT_DROP = "k"
+RESET = "r"
 
 
 class Tetris:
     def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
         self.board: list[list[bool]] = [
             [0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)
         ]
@@ -113,10 +118,22 @@ class Tetris:
 
         self.current_piece = new_piece
 
+    def soft_drop(self) -> None:
+        if self.valid(self.current_piece, self.i + 1, self.j):
+            self.i += 1
+        else:
+            self.place_piece()
+
     def hard_drop(self) -> None:
         while self.valid(self.current_piece, self.i + 1, self.j):
             self.i += 1
         self.place_piece()
+
+    def clear_lines(self) -> None:
+        for i, row in enumerate(self.board):
+            if all(row):
+                self.board.pop(i)
+                self.board.insert(0, [False for _ in range(BOARD_WIDTH)])
 
     def valid(self, piece: list[list[bool]], offset_i: int, offset_j: int) -> bool:
         for i, row in enumerate(piece):
@@ -144,6 +161,8 @@ class Tetris:
         self.current_piece = self.get_new_piece()
         self.i = 0
         self.j = BOARD_WIDTH // 2
+
+        self.clear_lines()
 
     def draw(self) -> None:
         os.system("cls" if os.name == "nt" else "clear")
@@ -175,6 +194,10 @@ class Tetris:
                 self.rotate("180")
             elif key_pressed == HARD_DROP:
                 self.hard_drop()
+            elif key_pressed == SOFT_DROP:
+                self.soft_drop()
+            elif key_pressed == RESET:
+                self.reset()
             key_pressed = None
 
         if not frame_count % BUFFER:
