@@ -57,39 +57,42 @@ MOVE_RIGHT = "l"
 MOVE_LEFT = "j"
 ROTATE_CLOCKWISE = "f"
 ROTATE_COUNTERCLOCKWISE = "s"
+ROTATE_180 = "d"
+HARD_DROP = " "
 
 
 class Tetris:
     def __init__(self) -> None:
-        self.board = [[0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
-        self.pos = [0, BOARD_WIDTH // 2]
-        self.current_piece = self.get_new_piece()
+        self.board: list[list[bool]] = [
+            [0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)
+        ]
+        self.current_piece: list[list[bool]] = self.get_new_piece()
+        self.i: int = 0
+        self.j: int = BOARD_WIDTH // 2
 
     def get_new_piece(self) -> list[list[bool]]:
         return random.choice(list(PIECES.values()))
 
     def move(self, dir: str) -> None:
-        new_pos: list[int] = self.pos.copy()
+        new_i: int = self.i
+        new_j: int = self.j
 
         if dir == "LEFT":
-            new_pos[1] -= 1
+            new_j -= 1
         elif dir == "RIGHT":
-            new_pos[1] += 1
+            new_j += 1
         elif dir == "DOWN":
-            new_pos[0] += 1
+            new_i += 1
         elif dir == "UP":
-            new_pos[0] -= 1
+            new_i -= 1
 
-        for i, row in enumerate(self.current_piece):
-            for j, cell in enumerate(row):
-                if cell and not self.valid([new_pos[0] + i, new_pos[1] + j]):
-                    if dir == "DOWN":
-                        self.place_piece()
-                        return
-                    else:
-                        return
+        if not self.valid(self.current_piece, new_i, new_j):
+            if dir == "DOWN":
+                self.place_piece()
+            return
 
-        self.pos = new_pos
+        self.i = new_i
+        self.j = new_j
 
     def rotate(self, dir: str) -> None:
         if dir == "CLOCKWISE":
@@ -100,31 +103,47 @@ class Tetris:
             new_piece: list[list[bool]] = [
                 list(row) for row in zip(*self.current_piece)
             ][::-1]
+        elif dir == "180":
+            new_piece: list[list[bool]] = [
+                row[::-1] for row in self.current_piece[::-1]
+            ]
 
-        for i, row in enumerate(new_piece):
-            for j, cell in enumerate(row):
-                if cell and not self.valid([self.pos[0] + i, self.pos[1] + j]):
-                    return
+        if not self.valid(new_piece, self.i, self.j):
+            return
 
         self.current_piece = new_piece
 
-    def valid(self, pos: list[int]) -> bool:
-        return (
-            0 <= pos[0]
-            and pos[0] < BOARD_HEIGHT
-            and 0 <= pos[1]
-            and pos[1] < BOARD_WIDTH
-            and not self.board[pos[0]][pos[1]]
-        )
+    def hard_drop(self) -> None:
+        while self.valid(self.current_piece, self.i + 1, self.j):
+            self.i += 1
+        self.place_piece()
+
+    def valid(self, piece: list[list[bool]], offset_i: int, offset_j: int) -> bool:
+        for i, row in enumerate(piece):
+            for j, cell in enumerate(row):
+                if cell:
+                    new_i = offset_i + i
+                    new_j = offset_j + j
+
+                    if (
+                        new_i < 0
+                        or new_i >= BOARD_HEIGHT
+                        or new_j < 0
+                        or new_j >= BOARD_WIDTH
+                        or self.board[new_i][new_j]
+                    ):
+                        return False
+        return True
 
     def place_piece(self) -> None:
         for i, row in enumerate(self.current_piece):
             for j, cell in enumerate(row):
                 if cell:
-                    self.board[self.pos[0] + i][self.pos[1] + j] = True
+                    self.board[self.i + i][self.j + j] = True
 
         self.current_piece = self.get_new_piece()
-        self.pos = [0, BOARD_WIDTH // 2]
+        self.i = 0
+        self.j = BOARD_WIDTH // 2
 
     def draw(self) -> None:
         os.system("cls" if os.name == "nt" else "clear")
@@ -136,7 +155,7 @@ class Tetris:
         for i, row in enumerate(self.current_piece):
             for j, cell in enumerate(row):
                 if cell:
-                    board_to_print[self.pos[0] + i][self.pos[1] + j] = " #"
+                    board_to_print[self.i + i][self.j + j] = " #"
 
         print("\n".join(["".join(row) for row in board_to_print]))
 
@@ -152,6 +171,10 @@ class Tetris:
                 self.rotate("CLOCKWISE")
             elif key_pressed == ROTATE_COUNTERCLOCKWISE:
                 self.rotate("COUNTERCLOCKWISE")
+            elif key_pressed == ROTATE_180:
+                self.rotate("180")
+            elif key_pressed == HARD_DROP:
+                self.hard_drop()
             key_pressed = None
 
         if not frame_count % BUFFER:
